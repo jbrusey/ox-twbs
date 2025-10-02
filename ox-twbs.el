@@ -2058,13 +2058,15 @@ holding contextual information."
            (todo-type (and todo (org-element-property :todo-type headline)))
            (tags (and (plist-get info :with-tags)
                       (org-export-get-tags headline info)))
-           (priority (and (plist-get info :with-priority)
-                          (org-element-property :priority headline)))
-           (section-number (mapconcat #'number-to-string
-                                      (org-export-get-headline-number
-                                       headline info) "-"))
-           (ids (delq 'nil
-                      (list (org-element-property :CUSTOM_ID headline)
+        (let* ((extra-class (org-element-property :HTML_CONTAINER_CLASS headline))
+               (level1 (+ level (1- org-twbs-toplevel-hlevel)))
+               (first-content (car (org-element-contents headline)))
+               (has-section (and (consp first-content)
+                                 (eq (org-element-type first-content) 'section))))
+                  (if has-section
+                      contents
+                    (concat (org-twbs--outline-text headline info "")
+                            contents))
                             (concat "sec-" section-number)
                             (org-element-property :ID headline))))
            (preferred-id (car ids))
@@ -2745,18 +2747,21 @@ channel."
              (let ((scheduled (org-element-property :scheduled planning)))
                (when scheduled
                  (format span-fmt org-scheduled-string
-                         (org-timestamp-translate scheduled))))))
-      " "))))
+(defun org-twbs--outline-text (headline info &optional contents)
+  "Return outline text container for HEADLINE.
+INFO is the export state plist.  CONTENTS is the string that should
+appear inside the container."
+  (let* ((class-num (+ (org-export-get-relative-level headline info)
+                       (1- org-twbs-toplevel-hlevel)))
+         (section-number
+          (mapconcat #'number-to-string
+                     (org-export-get-headline-number headline info) "-")))
+    (format "<div class=\"outline-text-%d\" id=\"text-%s\">\n%s</div>"
+            class-num
+            (or (org-element-property :CUSTOM_ID headline) section-number)
+            (or contents ""))))
 
-;;;; Property Drawer
-
-(defun org-twbs-property-drawer (property-drawer contents info)
-  "Transcode a PROPERTY-DRAWER element from Org to HTML.
-CONTENTS is nil.  INFO is a plist holding contextual
-information."
-  ;; The property drawer isn't exported but we want separating blank
-  ;; lines nonetheless.
-  "")
+      (org-twbs--outline-text parent info contents))))
 
 ;;;; Quote Block
 
