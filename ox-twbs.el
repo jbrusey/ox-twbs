@@ -8,6 +8,7 @@
 ;;         Brandon van Beekum <marsmining at gmail dot com>
 ;; URL: https://github.com/marsmining/ox-twbs
 ;; Keywords: org, html, publish, twitter, bootstrap
+;; Package-Requires: ((org "9.8"))
 ;; Version: 1.1.4
 
 ;; This file is not part of GNU Emacs.
@@ -2090,9 +2091,11 @@ holding contextual information."
              (and (org-export-last-sibling-p headline info)
                   (org-twbs-end-plain-list type))))
         ;; Standard headline.  Export it as a section.
-        (let ((extra-class (org-element-property :HTML_CONTAINER_CLASS headline))
-              (level1 (+ level (1- org-twbs-toplevel-hlevel)))
-              (first-content (car (org-element-contents headline))))
+        (let* ((extra-class (org-element-property :HTML_CONTAINER_CLASS headline))
+               (level1 (+ level (1- org-twbs-toplevel-hlevel)))
+               (first-content (car (org-element-contents headline)))
+               (has-section (and (consp first-content)
+                                 (eq (org-element-type first-content) 'section))))
           (format "<%s id=\"%s\" class=\"%s\">%s%s</%s>\n"
                   (org-twbs--container headline info)
                   (format "outline-container-%s"
@@ -2105,10 +2108,10 @@ holding contextual information."
                   ;; When there is no section, pretend there is an
                   ;; empty one to get the correct <div class="outline-
                   ;; ...> which is needed by `org-info.js'.
-                  (if (not (eq (org-element-type first-content) 'section))
-                      (concat (org-twbs-section first-content "" info)
-                              contents)
-                    contents)
+                  (if has-section
+                      contents
+                    (concat (org-twbs--outline-text headline info "")
+                            contents))
                   (org-twbs--container headline info)))))))
 
 (defun org-twbs--container (headline info)
@@ -2777,6 +2780,20 @@ CONTENTS is nil.  INFO is a plist holding contextual information."
 
 ;;;; Section
 
+(defun org-twbs--outline-text (headline info &optional contents)
+  "Return outline text container for HEADLINE.
+INFO is the export state plist.  CONTENTS is the string that should
+appear inside the container."
+  (let* ((class-num (+ (org-export-get-relative-level headline info)
+                       (1- org-twbs-toplevel-hlevel)))
+         (section-number
+          (mapconcat #'number-to-string
+                     (org-export-get-headline-number headline info) "-")))
+    (format "<div class=\"outline-text-%d\" id=\"text-%s\">\n%s</div>"
+            class-num
+            (or (org-element-property :CUSTOM_ID headline) section-number)
+            (or contents ""))))
+
 (defun org-twbs-section (section contents info)
   "Transcode a SECTION element from Org to HTML.
 CONTENTS holds the contents of the section.  INFO is a plist
@@ -2784,18 +2801,7 @@ holding contextual information."
   (let ((parent (org-export-get-parent-headline section)))
     ;; Before first headline: no container, just return CONTENTS.
     (if (not parent) contents
-      ;; Get div's class and id references.
-      (let* ((class-num (+ (org-export-get-relative-level parent info)
-                           (1- org-twbs-toplevel-hlevel)))
-             (section-number
-              (mapconcat
-               'number-to-string
-               (org-export-get-headline-number parent info) "-")))
-        ;; Build return value.
-        (format "<div class=\"outline-text-%d\" id=\"text-%s\">\n%s</div>"
-                class-num
-                (or (org-element-property :CUSTOM_ID parent) section-number)
-                (or contents ""))))))
+      (org-twbs--outline-text parent info contents))))
 
 ;;;; Radio Target
 
