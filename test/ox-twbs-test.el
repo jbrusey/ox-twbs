@@ -38,6 +38,11 @@ HTML produced by `org-export-string-as' using the twbs back-end."
       (should grandchild-pos)
       (should (< text-pos grandchild-pos)))))
 
+(ert-deftest org-twbs-export-uses-custom-ids-for-outline-text ()
+  "Custom IDs should drive outline text container identifiers."
+  (org-twbs-test-with-export "* Parent\n:PROPERTIES:\n:CUSTOM_ID: parent-id\n:END:\n** Child\n"
+    (should (string-match "<div class=\\\"outline-text-1\\\" id=\\\"text-parent-id\\\">" output))))
+
 (provide 'ox-twbs-test)
 
 ;;; ox-twbs-test.el ends here

@@ -44,6 +44,7 @@
 (require 'format-spec)
 (eval-when-compile (require 'cl) (require 'table nil 'noerror))
 
+(declare-function org-export-solidify-link-text "ox" (s))
 
 ;;; Function Declarations
 
@@ -2747,10 +2748,35 @@ channel."
              (let ((scheduled (org-element-property :scheduled planning)))
                (when scheduled
                  (format span-fmt org-scheduled-string
-                         (org-timestamp-translate scheduled))))))
-      " "))))
+(defun org-twbs--solidify-link-text (text)
+  "Return a sanitized identifier for TEXT.
+Use Org's `org-export-solidify-link-text' when available, otherwise
+fallback to a minimal replacement that preserves ASCII word characters."
+  (when (stringp text)
+    (if (fboundp 'org-export-solidify-link-text)
+        (org-export-solidify-link-text text)
+      (replace-regexp-in-string "[^A-Za-z0-9_:-]" "-" text))))
 
-;;;; Property Drawer
+(defun org-twbs--headline-section-id (headline info)
+  "Return identifier for HEADLINE's outline text container.
+INFO is the export state plist.  Fall back gracefully when older Org
+versions omit section elements so the exporter keeps working."
+  (or (org-element-property :CUSTOM_ID headline)
+      (let ((headline-number
+             (when (fboundp 'org-export-get-headline-number)
+               (with-no-warnings
+                 (condition-case nil
+                     (org-export-get-headline-number headline info)
+                   (wrong-number-of-arguments
+                    (org-export-get-headline-number headline)))))))
+        (and headline-number
+             (mapconcat #'number-to-string headline-number "-")))
+      (org-twbs--solidify-link-text (org-element-property :ID headline))
+      (org-twbs--solidify-link-text (org-element-property :name headline))
+      ""))
+
+         (section-id (org-twbs--headline-section-id headline info)))
+            section-id
 
 (defun org-twbs-property-drawer (property-drawer contents info)
   "Transcode a PROPERTY-DRAWER element from Org to HTML.
